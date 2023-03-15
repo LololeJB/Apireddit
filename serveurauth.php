@@ -28,8 +28,11 @@ case "POST" :
   $postedData = file_get_contents('php://input');
   echo $postedData;
   ///Lookup pour voir si le login est valide
-  $type="admin";
-  if(json_decode($postedData)->username=="admin"&& json_decode($postedData)->password=="password"){
+  $request=$linkpdo->prepare("SELECT username, type FROM authorized_logins where Username = :username and Password = :password");
+  $request->execute(array('username'=>($postedData)->username,'password'=>($postedData)->password));
+  error_log("data selected");
+  if(isset($request)){
+    error_log("isset passé");
     $header=array('alg'=>'HS256','typ'=>'JWT');
     $payload=array('username'=>json_decode($postedData)->username,'account_type'=>$type,'exp'=>(time()+3600));
     $token=generate_jwt($header,$payload);
