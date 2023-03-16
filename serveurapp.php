@@ -3,14 +3,13 @@
     //include('mylib.php');
 
     try{
-            $dbname='chuck';
-            $user='root';
-            $host='localhost';
-                $linkpdo = new PDO('mysql:host='.$host.';dbname='.$dbname.';charset=utf8',$user);
-            }
-            catch(Exception $e){
-                die('Erreur : ' . $e->getMessage());
-            }
+        $dbname='chuck';
+        $user='root';
+        $host='localhost';
+        $linkpdo = new PDO('mysql:host='.$host.';dbname='.$dbname.';charset=utf8',$user);
+    }catch(Exception $e){
+        die('Erreur : ' . $e->getMessage());
+    }
             
     /// Paramétrage de l'entête HTTP (pour la réponse au Client)
     header("Content-Type:application/json");
@@ -28,7 +27,17 @@
                 $valeur_token =explode('.',$bearer_token);
                 $payload_token = base64_decode($valeur_token[1]);
                 if(json_decode($payload_token)->account_type == 'admin'){
-            if (!empty($_GET['id']) && empty($_GET['vote'])){
+                    if (!empty($_GET['id']) && empty($_GET['vote'])){
+                        $req=$linkpdo->prepare("Select * from ".$table1." where id=".$_GET['id']." order by vote");
+                        $req->execute();
+                        $matchingData=$req->fetchAll();
+                    } else {
+                        $req=$linkpdo->prepare("Select * from ".$table1);
+                        $req->execute();
+                        $matchingData=$req->fetchAll();
+                    }
+                } if(json_decode($payload_token)->account_type == 'publisher'){
+                    if (!empty($_GET['id']) && empty($_GET['like'])){
                         $req=$linkpdo->prepare("Select * from ".$table1." where id=".$_GET['id']." order by vote");
                         $req->execute();
                         $matchingData=$req->fetchAll();
@@ -38,11 +47,23 @@
                         $matchingData=$req->fetchAll();
                     }
                 }
+                deliver_response(200, "Cela fonctionne correctement", $matchingData);
+            } else if ($bearer_token == null) {
+                if (!empty($_GET['id']) && empty($_GET['like'])){
+                    $req=$linkpdo->prepare("Select * from ".$table1." where id=".$_GET['id']." order by vote");
+                    $req->execute();
+                    $matchingData=$req->fetchAll();
+                } else {
+                    $req=$linkpdo->prepare("Select * from ".$table1);
+                    $req->execute();
+                    $matchingData=$req->fetchAll();
+                }
+            } else {
+                deliver_response(498, "Jeton invalide", $matchingData);
             }
-                
-            if (!empty($_GET['id']) || !empty($_GET['vote'])){
-                if($_GET['nbVote']!=0 || $_GET['vote']=="+"){
-                    $req=$linkpdo->prepare("update ".$table1." set vote=vote".$_GET['vote']."1 where id=".$_GET['id']." order by vote");
+            if (!empty($_GET['id']) || !empty($_GET['like'])){
+                if($_GET['nbVote']!=0 || $_GET['like']=="+"){
+                    $req=$linkpdo->prepare("update ".$table1." set vote=vote".$_GET['like']."1 where id=".$_GET['id']." order by vote");
                     $req->execute();
                     $matchingData=$req->fetchAll();
                 }
