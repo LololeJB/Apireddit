@@ -1,7 +1,5 @@
 <?php
-    /// Librairies éventuelles (pour la connexion à la BDD, etc.)
-    //include('mylib.php');
-
+    
     try{
             $dbname='chuck';
             $user='root';

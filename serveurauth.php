@@ -28,7 +28,7 @@ case "POST" :
   $postedData = file_get_contents('php://input');
   echo $postedData;
   ///Lookup pour voir si le login est valide
-  $request=$linkpdo->prepare("SELECT username, type FROM authorized_logins where Username = :username and Password = :password");
+  $request=$linkpdo->prepare("SELECT 'type' FROM 'authorized_logins' WHERE Username = :username AND Password = :password");
   $request->execute(array('username'=>($postedData)->username,'password'=>($postedData)->password));
   error_log("data selected");
   if(isset($request)){
