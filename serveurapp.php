@@ -19,17 +19,22 @@
     $http_method = $_SERVER['REQUEST_METHOD'];
     $table1='chuckn_facts';
     $bearer_token=get_bearer_token();
-    if (is_jwt_valid($bearer_token)){
+    if($bearer_token==null){
+        $account_type="anonyme";
+    }
+    else if (is_jwt_valid($bearer_token)){
         $valeur_token =explode('.',$bearer_token);
         $payload_token = base64_decode($valeur_token[1]);
         $account_type = json_decode($payload_token)->account_type;
+    }
+    else{
+        deliver_response(498, "Jeton invalide", NULL);
     }
     switch ($http_method){
 
         /// Cas de la méthode GET
         case "GET" :
-            /// Récupération des critères de recherche envoyés par le Client
-            
+            /// Récupération des critères de recherche envoyés par le Client            
             if($account_type == 'admin'){
                 if (!empty($_GET['id']) && empty($_GET['vote'])){
                     $req=$linkpdo->prepare("Select * from ".$table1." where id=".$_GET['id']." order by vote");
@@ -40,28 +45,62 @@
                     $req->execute();
                     $matchingData=$req->fetchAll();
                 }
-            }      
-            if (!empty($_GET['id']) || !empty($_GET['vote'])){
-                if($_GET['nbVote']!=0 || $_GET['vote']=="+"){
-                    $req=$linkpdo->prepare("update ".$table1." set vote=vote".$_GET['vote']."1 where id=".$_GET['id']." order by vote");
+            } if($account_type == 'publisher'){
+                if (!empty($_GET['id']) && empty($_GET['like'])){
+                    $req=$linkpdo->prepare("Select * from ".$table1." where id=".$_GET['id']." order by vote");
+                    $req->execute();
+                    $matchingData=$req->fetchAll();
+                } else {
+                    $req=$linkpdo->prepare("Select * from ".$table1);
+                    $req->execute();
+                    $matchingData=$req->fetchAll();
+                }
+                if (!empty($_GET['id']) || !empty($_GET['like'])){
+                    if($_GET['like']=="+"){
+                        $req=$linkpdo->prepare("update ".$table1." set like=like + 1 where id=".$_GET['id']." order by vote");
+                        $req->execute();
+                        $matchingData=$req->fetchAll();
+                    } else if($_GET['like']=="-"){
+                        $req=$linkpdo->prepare("update ".$table1." set dislike=dislike + 1 where id=".$_GET['id']." order by vote");
+                        $req->execute();
+                        $matchingData=$req->fetchAll();
+                    }
+                }
+            } if ($account_type=="anonyme") {
+                if (!empty($_GET['id']) && empty($_GET['like'])){
+                    $req=$linkpdo->prepare("Select * from ".$table1." where id=".$_GET['id']." order by vote");
+                    $req->execute();
+                    $matchingData=$req->fetchAll();
+                } else {
+                    $req=$linkpdo->prepare("Select * from ".$table1);
                     $req->execute();
                     $matchingData=$req->fetchAll();
                 }
             }
             /// Envoi de la réponse au Client
             deliver_response(200, "Cela fonctionne correctement", $matchingData);
-        break;
+            break;
 
         /// Cas de la méthode POST
         case "POST" :
-            /// Récupération des données envoyées par le Client
-            $postedData = file_get_contents('php://input');
-            /// Traitement
-            $jsonData= json_decode($postedData);
-            $phrase=$jsonData->phrase;
-            $req=$linkpdo->prepare("Insert into ".$table1." (phrase, date_ajout) VALUES (:phrase, :date_ajout)");
-            $req->execute(array("phrase" => $phrase, "date_ajout" =>date("Y/m/d H:i:s", time())));
-            deliver_response(201, "2", NULL);
+            if (is_jwt_valid($bearer_token)){
+                $valeur_token =explode('.',$bearer_token);
+                $payload_token = base64_decode($valeur_token[1]);
+                if(json_decode($payload_token)->account_type == 'publisher'){
+                    /// Récupération des données envoyées par le Client
+                    $postedData = file_get_contents('php://input');
+                    /// Traitement
+                    $jsonData= json_decode($postedData);
+                    $phrase=$jsonData->phrase;
+                    $req=$linkpdo->prepare("Insert into ".$table1." (phrase, date_ajout) VALUES (:phrase, :date_ajout)");
+                    $req->execute(array("phrase" => $phrase, "date_ajout" =>date("Y/m/d H:i:s", time())));
+                    deliver_response(201, "Requete réussi", NULL);
+                }else{
+                    deliver_response(498, "Jeton invalide", NULL);
+                }
+            }else{
+                deliver_response(498, "Jeton invalide", NULL);
+            }
         break;
         
         /// Cas de la méthode PUT
