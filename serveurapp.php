@@ -46,6 +46,17 @@
                         $req->execute();
                         $matchingData=$req->fetchAll();
                     }
+                    if (!empty($_GET['id']) || !empty($_GET['like'])){
+                        if($_GET['like']=="+"){
+                            $req=$linkpdo->prepare("update ".$table1." set like=like + 1 where id=".$_GET['id']." order by vote");
+                            $req->execute();
+                            $matchingData=$req->fetchAll();
+                        } else if($_GET['like']=="-"){
+                            $req=$linkpdo->prepare("update ".$table1." set dislike=dislike + 1 where id=".$_GET['id']." order by vote");
+                            $req->execute();
+                            $matchingData=$req->fetchAll();
+                        }
+                    }
                 }
                 deliver_response(200, "Cela fonctionne correctement", $matchingData);
             } else if ($bearer_token == null) {
@@ -59,14 +70,7 @@
                     $matchingData=$req->fetchAll();
                 }
             } else {
-                deliver_response(498, "Jeton invalide", $matchingData);
-            }
-            if (!empty($_GET['id']) || !empty($_GET['like'])){
-                if($_GET['nbVote']!=0 || $_GET['like']=="+"){
-                    $req=$linkpdo->prepare("update ".$table1." set vote=vote".$_GET['like']."1 where id=".$_GET['id']." order by vote");
-                    $req->execute();
-                    $matchingData=$req->fetchAll();
-                }
+                deliver_response(498, "Jeton invalide", NULL);
             }
             /// Envoi de la réponse au Client
             deliver_response(200, "Cela fonctionne correctement", $matchingData);
@@ -74,14 +78,24 @@
 
         /// Cas de la méthode POST
         case "POST" :
-            /// Récupération des données envoyées par le Client
-            $postedData = file_get_contents('php://input');
-            /// Traitement
-            $jsonData= json_decode($postedData);
-            $phrase=$jsonData->phrase;
-            $req=$linkpdo->prepare("Insert into ".$table1." (phrase, date_ajout) VALUES (:phrase, :date_ajout)");
-            $req->execute(array("phrase" => $phrase, "date_ajout" =>date("Y/m/d H:i:s", time())));
-            deliver_response(201, "2", NULL);
+            if (is_jwt_valid($bearer_token)){
+                $valeur_token =explode('.',$bearer_token);
+                $payload_token = base64_decode($valeur_token[1]);
+                if(json_decode($payload_token)->account_type == 'publisher'){
+                    /// Récupération des données envoyées par le Client
+                    $postedData = file_get_contents('php://input');
+                    /// Traitement
+                    $jsonData= json_decode($postedData);
+                    $phrase=$jsonData->phrase;
+                    $req=$linkpdo->prepare("Insert into ".$table1." (phrase, date_ajout) VALUES (:phrase, :date_ajout)");
+                    $req->execute(array("phrase" => $phrase, "date_ajout" =>date("Y/m/d H:i:s", time())));
+                    deliver_response(201, "Requete réussi", NULL);
+                }else{
+                    deliver_response(498, "Jeton invalide", NULL);
+                }
+            }else{
+                deliver_response(498, "Jeton invalide", NULL);
+            }
         break;
         
         /// Cas de la méthode PUT
