@@ -83,25 +83,20 @@
 
         /// Cas de la méthode POST
         case "POST" :
-            if (is_jwt_valid($bearer_token)){
-                $valeur_token =explode('.',$bearer_token);
-                $payload_token = base64_decode($valeur_token[1]);
-                if(json_decode($payload_token)->account_type == 'publisher'){
-                    /// Récupération des données envoyées par le Client
-                    $postedData = file_get_contents('php://input');
-                    /// Traitement
-                    $jsonData= json_decode($postedData);
-                    $phrase=$jsonData->phrase;
-                    $req=$linkpdo->prepare("Insert into ".$table1." (phrase, date_ajout) VALUES (:phrase, :date_ajout)");
-                    $req->execute(array("phrase" => $phrase, "date_ajout" =>date("Y/m/d H:i:s", time())));
-                    deliver_response(201, "Requete réussi", NULL);
-                }else{
-                    deliver_response(498, "Jeton invalide", NULL);
-                }
-            }else{
-                deliver_response(498, "Jeton invalide", NULL);
+            //Seuls les publishers peuvent envoyer un post
+            if($account_type == 'publisher'){
+                /// Récupération des données envoyées par le Client
+                $postedData = file_get_contents('php://input');
+                /// Traitement
+                $jsonData= json_decode($postedData);
+                $phrase=$jsonData->phrase;
+                $req=$linkpdo->prepare("Insert into ".$table1." (phrase, date_ajout) VALUES (:phrase, :date_ajout)");
+                $req->execute(array("phrase" => $phrase, "date_ajout" =>date("Y/m/d H:i:s", time())));
+                deliver_response(201, "Requete réussi", NULL);
+            } else{
+                deliver_response(403, "Ce compte n'a pas accès à cette commande", NULL);
             }
-        break;
+            break;
         
         /// Cas de la méthode PUT
         case "PUT" :
