@@ -1,6 +1,6 @@
 <?php
     /// Librairies éventuelles (pour la connexion à la BDD, etc.)
-    //include('mylib.php');
+    include('jwt_utils.php');
 
     try{
             $dbname='redditapiv2';
@@ -17,8 +17,9 @@
 
     /// Identification du type de méthode HTTP envoyée par le client
     $http_method = $_SERVER['REQUEST_METHOD'];
-    $table1='chuckn_facts';
+    $table1='post';
     $bearer_token=get_bearer_token();
+    error_log($bearer_token);
     if($bearer_token==null){
         $account_type="anonyme";
     }
@@ -41,9 +42,10 @@
                     $req->execute();
                     $matchingData=$req->fetchAll();
                 } else {
+                    error_log("execute admin");
                     $req=$linkpdo->prepare("Select * from ".$table1);
                     $req->execute();
-                    $matchingData=$req->fetchAll();
+                    $matchingData=$req->fetchAll(PDO::FETCH_ASSOC);
                 }
             } if($account_type == 'publisher'){
                 if (!empty($_GET['id']) && empty($_GET['like'])){
@@ -51,9 +53,10 @@
                     $req->execute();
                     $matchingData=$req->fetchAll();
                 } else {
+                    error_log('publisher');
                     $req=$linkpdo->prepare("Select * from ".$table1);
                     $req->execute();
-                    $matchingData=$req->fetchAll();
+                    $matchingData=$req->fetchAll(PDO::FETCH_ASSOC);
                 }
                 if (!empty($_GET['id']) || !empty($_GET['like'])){
                     if($_GET['like']=="+"){
@@ -63,7 +66,7 @@
                     } else if($_GET['like']=="-"){
                         $req=$linkpdo->prepare("update ".$table1." set dislike=dislike + 1 where id=".$_GET['id']." order by vote");
                         $req->execute();
-                        $matchingData=$req->fetchAll();
+                        $matchingData=$req->fetchAll(PDO::FETCH_ASSOC);
                     }
                 }
             } if ($account_type=="anonyme") {
@@ -72,9 +75,10 @@
                     $req->execute();
                     $matchingData=$req->fetchAll();
                 } else {
+                    error_log("anonymous");
                     $req=$linkpdo->prepare("Select * from ".$table1);
                     $req->execute();
-                    $matchingData=$req->fetchAll();
+                    $matchingData=$req->fetchAll(PDO::FETCH_ASSOC);
                 }
             }
             /// Envoi de la réponse au Client
@@ -100,6 +104,7 @@
         
         /// Cas de la méthode PUT
         case "PUT" :
+            //seuls les publishers peuvent modifier les données
             /// Récupération des données envoyées par le Client
             $postedData = file_get_contents('php://input');
             /// Traitement
