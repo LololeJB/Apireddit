@@ -115,26 +115,31 @@
         /// Cas de la méthode PUT
         case "PUT" :
             /// Récupération des données envoyées par le Client
-            if($_GET['like']=="+"){
-                $req=$linkpdo->prepare("update ".$table1." set like=like + 1 where id=".$_GET['id']);
-                $req->execute();
-                $matchingData=$req->fetchAll();
-            } else if($_GET['like']=="-"){
-                $req=$linkpdo->prepare("update ".$table1." set dislike=dislike - 1 where id=".$_GET['id']);
-                $req->execute();
-                $matchingData=$req->fetchAll();
+            if ($account_type == 'publisher') {
+                if($_GET['like']=="+"){
+                    $req=$linkpdo->prepare("update ".$table1." set like=like + 1 where id=".$_GET['id']);
+                    $req->execute();
+                } else if($_GET['like']=="-"){
+                    $req=$linkpdo->prepare("update ".$table1." set dislike=dislike + 1 where id=".$_GET['id']);
+                    $req->execute();
+                }
+                if (!isset($_GET['like'])) {
+                    $postedData = file_get_contents('php://input');
+                    /// Traitement
+                    $jsonData= json_decode($postedData);
+                    $phrase=$jsonData->phrase;
+                    $id=$jsonData->id;
+                    $req=$linkpdo->prepare("SELECT count(phrase) into ".$table1." where id=".$id." and idUser='".$username."'");
+                    $req->execute();
+                    $usermessage=$req->fetchAll();
+                    $req=$linkpdo->prepare("UPDATE ".$table1." set phrase =:phrase , date_modif=:date_modif where id=:id");
+                    $req->execute(array("phrase"=>$phrase, "id"=>$id, "date_modif" => date("Y/m/d H:i:s", time())));
+                }
+                /// Envoi de la réponse au Client
+                deliver_response(200, "3", NULL);
+            } else {
+                deliver_response(403, "Ce compte n'a pas accès à cette commande", NULL);
             }
-            $postedData = file_get_contents('php://input');
-            /// Traitement
-            $jsonData= json_decode($postedData);
-            $phrase=$jsonData->phrase;
-            $id=$jsonData->id;
-            $req=$linkpdo->prepare("UPDATE ".$table1." set phrase =:phrase , date_modif=:date_modif where id=:id");
-            $req->execute(array("phrase"=>$phrase, "id"=>$id, "date_modif" => date("Y/m/d H:i:s", time())));
-            /// Envoi de la réponse au Client
-            deliver_response(200, "3", NULL);
-        break;
-        deliver_response(200, "3", NULL);
         break;
 
         /// Cas de la méthode DELETE
