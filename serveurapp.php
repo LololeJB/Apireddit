@@ -1,6 +1,6 @@
 <?php
     /// Librairies éventuelles (pour la connexion à la BDD, etc.)
-    //include('mylib.php');
+    include('jwt_utils.php');
 
     try{
             //les acces a la base de données
@@ -21,6 +21,7 @@
     $table1='table avec tout les contenu';
     $table2='table avec les like et dislike avec id du message et id des users';
     $bearer_token=get_bearer_token();
+    error_log($bearer_token);
     if($bearer_token==null){
         $account_type="anonyme";
     }
@@ -47,6 +48,7 @@
                     deliver_response(200, "cela a fonctionné", $matchingData);
                 // Apparition de tout les contenus pour les admin avec toutes les informations
                 } else {
+                    error_log("execute admin");
                     $req=$linkpdo->prepare("Select * from ".$table1);
                     $req->execute();
                     $matchingData=$req->fetchAll(PDO::FETCH_ASSOC);
@@ -88,6 +90,7 @@
                     }
                 }else if (empty($_GET['id'])&& empty($_GET['like'])){
                     /// Récupération des données envoyées par le Client
+                }else if (empty($_GET['id'])&& empty($_GET['like'])){
                     $postedData = file_get_contents('php://input');
                     /// Traitement
                     $jsonData= json_decode($postedData);
@@ -96,12 +99,12 @@
                     $req->execute(array("phrase" => $phrase, "date_ajout" =>date("Y/m/d H:i:s", time())));
                     deliver_response(201, "Requete réussi", NULL);
                 }else{
-                    
+                    deliver_response(403, "Ce compte n'a pas accès à cette commande", NULL);
                 }
-            }else{
-                deliver_response(498, "Jeton invalide", NULL);
+            } else{
+                deliver_response(403, "Ce compte n'a pas accès à cette commande", NULL);
             }
-        break;
+            break;
         
         /// Cas de la méthode PUT
         case "PUT" :
@@ -137,7 +140,7 @@
                 $req->execute();
             }
             if(!empty($_GET['id']) && $account_type == 'admin'){
-                
+
             }
             /// Envoi de la réponse au Client
             deliver_response(200, "4", NULL);
