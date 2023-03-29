@@ -60,7 +60,6 @@
                 $req->execute();
                 $matchingData=$req->fetchAll();
                 deliver_response(200, "cela a fonctionné", $matchingData);
-            } if ($account_type=="anonyme") {
                 //affiche des articles avec peu d'informations
                 $req=$linkpdo->prepare("Select * from ".$table1);
                 $req->execute();
@@ -76,12 +75,19 @@
             if($account_type == 'publisher'){
                 // vérifie si l'utilisateur a déja réagi au message
                 if (!empty($_GET['id']) || !empty($_GET['like'])){
-                    $req=$linkpdo->prepare("Select Reaction from ".$table2." where id=".$_GET['id']." and username=".$username);
+                    $like ='dislike';
+                    if ($_GET['like'] == '+') {
+                        $like = 'like';
+                    }
+                    $req=$linkpdo->prepare("Select id from ".$table3." where userName= :userName");
+                    $req->execute(array('userName' => $username ));
+                    $idUser=$req->fetchAll();
+                    $req=$linkpdo->prepare("Select Reaction from ".$table2." where idMessage=".$_GET['id']." and idUser=".$username);
                     $req->execute();
                     $matchingData=$req->fetchAll();
                     if($req == NULL){
-                        $req=$linkpdo->prepare("update ".$table1." set like=like + 1 where id=".$_GET['id']." order by vote");
-                        $req->execute();
+                        $req=$linkpdo->prepare("insert into ".$table2." (reaction, idMessage, idUser) VALUES (:reaction, :idMessage, :idUser)");
+                        $req->execute(array("reaction" => $like, "idMessage" => $_GET['id'], "idUser" => $idUser));
                         $matchingData=$req->fetchAll();
                     } else if($_GET['like']=="-"){
                         $req=$linkpdo->prepare("update ".$table1." set dislike=dislike - 1 where id=".$_GET['id']." order by vote");
@@ -128,22 +134,24 @@
             /// Envoi de la réponse au Client
             deliver_response(200, "3", NULL);
         break;
+        deliver_response(200, "3", NULL);
+        break;
 
         /// Cas de la méthode DELETE
         case "DELETE" :
-            /// Récupération de l'identifiant de la ressource envoyé par le Client
-            if (!empty($_GET['id']) && $account_type == 'admin'){
-                /// Traitement
-                $req=$linkpdo->prepare("Delete from ".$table2." where id=".$_GET['id']);
-                $req->execute();
-                $req=$linkpdo->prepare("Delete from ".$table1." where id=".$_GET['id']);
-                $req->execute();
+            $response_code = 403;
+            $response_string = "You are not allowed to perform this action";
+            //Cas du modo
+            if($account_type=="admin"){
+                $id=$_GET['id'];
+                $req=$linkpdo->prepare("Delete from ".$table1." where postid=?");
+                $req->execute(array($id));
+                $response_code=200;
+                $response_string="delete successful";
             }
-            if(!empty($_GET['id']) && $account_type == 'admin'){
-
-            }
+            //cas du publisher
             /// Envoi de la réponse au Client
-            deliver_response(200, "4", NULL);
+            deliver_response($response_code, $response_string, NULL);
         break;
 
         default :
