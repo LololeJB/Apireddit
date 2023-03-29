@@ -96,14 +96,14 @@
                         $like = 'like';
                     }
                     $req=$linkpdo->prepare("Select id from ".$table3." where userName= :userName");
-                    $req->xecute(array('userName' => $username ));
+                    $req->execute(array('userName' => $username ));
                     $idUser=$req->fetchAll();
                     $req=$linkpdo->prepare("Select Reaction from ".$table2." where idMessage=".$_GET['id']." and idUser=".$username);
                     $req->execute();
                     $matchingData=$req->fetchAll();
                     if($req == NULL){
                         $req=$linkpdo->prepare("insert into ".$table2." (reaction, idMessage, idUser) VALUES (:reaction, :idMessage, :idUser)");
-                        $req->execute(array("reaction" => $like, "idMessage" => $_GET['id'], "idUser" => $idUser););
+                        $req->execute(array("reaction" => $like, "idMessage" => $_GET['id'], "idUser" => $idUser));
                         $matchingData=$req->fetchAll();
                     } else if($_GET['like']=="-"){
                         $req=$linkpdo->prepare("update ".$table1." set dislike=dislike - 1 where id=".$_GET['id']." order by vote");
@@ -152,14 +152,21 @@
 
         /// Cas de la méthode DELETE
         case "DELETE" :
-            /// Récupération de l'identifiant de la ressource envoyé par le Client
-            if (!empty($_GET['id'])){
-                /// Traitement
-                $req=$linkpdo->prepare("Delete from ".$table1." where id=".$_GET['id']);
-                $req->execute();
+            $response_code = 403;
+            $response_string = "You are not allowed to perform this action";
+            //Cas du modo
+            if($account_type=="admin"){
+                $id=$_GET['id'];
+                $req=$linkpdo->prepare("Delete from ".$table1." where postid=?");
+                $req->execute(array($id));
+                $response_code=200;
+                $response_string="delete successful";
             }
+            //cas du publisher
+            
+            
             /// Envoi de la réponse au Client
-            deliver_response(200, "4", NULL);
+            deliver_response($response_code, $response_string, NULL);
         break;
 
         default :
