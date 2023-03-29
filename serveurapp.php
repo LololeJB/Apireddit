@@ -38,7 +38,7 @@
         case "GET" :
             /// Récupération des critères de recherche envoyés par le Client            
             if($account_type == 'admin'){
-                if (!empty($_GET['id'])){
+                if (!empty($_GET['id']) && empty($_GET['vote'])){
                     $req=$linkpdo->prepare("Select * from ".$table1." where id=".$_GET['id']." order by vote");
                     $req->execute();
                     $matchingData=$req->fetchAll();
@@ -49,7 +49,7 @@
                     $matchingData=$req->fetchAll(PDO::FETCH_ASSOC);
                 }
             } if($account_type == 'publisher'){
-                if (!empty($_GET['id'])){
+                if (!empty($_GET['id']) && empty($_GET['like'])){
                     $req=$linkpdo->prepare("Select * from ".$table1." where id=".$_GET['id']." order by vote");
                     $req->execute();
                     $matchingData=$req->fetchAll();
@@ -58,6 +58,17 @@
                     $req=$linkpdo->prepare("Select * from ".$table1);
                     $req->execute();
                     $matchingData=$req->fetchAll(PDO::FETCH_ASSOC);
+                }
+                if (!empty($_GET['id']) || !empty($_GET['like'])){
+                    if($_GET['like']=="+"){
+                        $req=$linkpdo->prepare("update ".$table1." set like=like + 1 where id=".$_GET['id']." order by vote");
+                        $req->execute();
+                        $matchingData=$req->fetchAll();
+                    } else if($_GET['like']=="-"){
+                        $req=$linkpdo->prepare("update ".$table1." set dislike=dislike + 1 where id=".$_GET['id']." order by vote");
+                        $req->execute();
+                        $matchingData=$req->fetchAll(PDO::FETCH_ASSOC);
+                    }
                 }
             } if ($account_type=="anonyme") {
                 if (!empty($_GET['id']) && empty($_GET['like'])){
@@ -90,13 +101,14 @@
                     $req=$linkpdo->prepare("Select Reaction from ".$table2." where idMessage=".$_GET['id']." and idUser=".$username);
                     $req->execute();
                     $matchingData=$req->fetchAll();
-                    if($matchingData == NULL){
+                    if($req == NULL){
                         $req=$linkpdo->prepare("insert into ".$table2." (reaction, idMessage, idUser) VALUES (:reaction, :idMessage, :idUser)");
                         $req->execute(array("reaction" => $like, "idMessage" => $_GET['id'], "idUser" => $idUser));
-                        $req->execute(array("reaction" => $like, "idMessage" => $_GET['id'], "idUser" => $idUser));
                         $matchingData=$req->fetchAll();
-                    } else {
-                        deliver_response(403, "Ce compte n'a pas accès à cette commande", NULL);
+                    } else if($_GET['like']=="-"){
+                        $req=$linkpdo->prepare("update ".$table1." set dislike=dislike - 1 where id=".$_GET['id']." order by vote");
+                        $req->execute();
+                        $matchingData=$req->fetchAll();
                     }
                     /// Récupération des données envoyées par le Client
                 }else if (empty($_GET['id'])&& empty($_GET['like'])){
@@ -117,42 +129,25 @@
         
         /// Cas de la méthode PUT
         case "PUT" :
-            if($account_type == 'publisher'){
-                $postedData = file_get_contents('php://input');
-                /// Traitement
-                $jsonData= json_decode($postedData);
-                $phrase=$jsonData->phrase;
-                $id=$jsonData->id;
-                $like=$jsonData->like;
-                if (!empty($_GET['id']) || !empty($_GET['like'])){
-                    if ($_GET['like'] == '+') {
-                        $like = 'like';
-                    }else if($_GET['like'] =='-'){
-                        $like ='dislike';
-                    }else{
-                        deliver_response(403, "Ce compte n'a pas accès à cette commande", NULL);
-                    }
-                    $req=$linkpdo->prepare("Select id from ".$table3." where userName= :userName");
-                    $req->xecute(array('userName' => $username ));
-                    $idUser=$req->fetchAll();
-                    $req=$linkpdo->prepare("Select Reaction from ".$table2." where idMessage=".$_GET['id']." and idUser=".$username);
-                    $req->execute();
-                    $matchingData=$req->fetchAll();
-                    if($matchingData == NULL){
-                        $req=$linkpdo->prepare("update ".$table1." set :like=:like + 1 where id=:id order by vote");
-                        $req->execute(array('like' => $like, ':id' => $_GET['id']));
-                    } else if($matchingData != $like){
-                        $req=$linkpdo->prepare("update ".$table1." set :oldLike=oldLike - 1 and set :newLike= :newLike +1 where id=:id order by vote");
-                        $req->execute(array('oldLike' =>$matchingData , 'newLike'=> $like, 'id' =>$_GET['id']));
-                    }
-                }else{
-                    $req=$linkpdo->prepare("UPDATE ".$table1." set phrase =:phrase , date_modif=:date_modif where id=:id");
-                    $req->execute(array("phrase"=>$phrase, "id"=>$id, "date_modif" => date("Y/m/d H:i:s", time())));
-                    /// Envoi de la réponse au Client
-                    }
-                    deliver_response(200, "3", NULL);
-                }
+            if($_GET['like']=="+"){
+                $req=$linkpdo->prepare("update ".$table1." set like=like + 1 where id=".$_GET['id']." order by vote");
+                $req->execute();
+                $matchingData=$req->fetchAll();
+            } else if($_GET['like']=="-"){
+                $req=$linkpdo->prepare("update ".$table1." set dislike=dislike - 1 where id=".$_GET['id']." order by vote");
+                $req->execute();
+                $matchingData=$req->fetchAll();
             }
+            $postedData = file_get_contents('php://input');
+            /// Traitement
+            $jsonData= json_decode($postedData);
+            $phrase=$jsonData->phrase;
+            $id=$jsonData->id;
+            $req=$linkpdo->prepare("UPDATE ".$table1." set phrase =:phrase , date_modif=:date_modif where id=:id");
+            $req->execute(array("phrase"=>$phrase, "id"=>$id, "date_modif" => date("Y/m/d H:i:s", time())));
+            /// Envoi de la réponse au Client
+            deliver_response(200, "3", NULL);
+        break;deliver_response(200, "3", NULL);
         break;
 
         /// Cas de la méthode DELETE
