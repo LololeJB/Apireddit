@@ -117,11 +117,47 @@
             /// Récupération des données envoyées par le Client
             if ($account_type == 'publisher') {
                 if($_GET['like']=="+"){
-                    $req=$linkpdo->prepare("update ".$table1." set like=like + 1 where id=".$_GET['id']);
+                    $req=$linkpdo->prepare("select count(type) from ".$table2." where user='".$username."' and postid=".$_GET['id'])
                     $req->execute();
+                    $result=$req->fetch();
+                    if ($result==0) {
+                        $req=$linkpdo->prepare("update ".$table1." set like=like + 1 where id=".$_GET['id']);
+                        $req->execute();
+                    } else { 
+                        $req=$linkpdo->prepare("select type from ".$table2." where user='".$username."' and postid=".$_GET['id'])
+                        $req->execute();
+                        $result=$req->fetch();
+                        if ($result == 0) {
+                            $req=$linkpdo->prepare("update ".$table2." set type=1 where user='".$username."' and postid=".$_GET['id']);
+                            $req->execute();
+                            $req=$linkpdo->prepare("update ".$table1." set like=like + 1 where id=".$_GET['id']);
+                            $req->execute();
+                        }else if ($result ==1){
+                            $req=$linkpdo->prepare("update ".$table1." set like=like - 1 where id=".$_GET['id']);
+                            $req->execute();
+                        }
+                    }
                 } else if($_GET['like']=="-"){
-                    $req=$linkpdo->prepare("update ".$table1." set dislike=dislike + 1 where id=".$_GET['id']);
+                    $req=$linkpdo->prepare("select count(type) from ".$table2." where user='".$username."' and postid=".$_GET['id'])
                     $req->execute();
+                    $result=$req->fetch();
+                    if ($result==0) {
+                        $req=$linkpdo->prepare("update ".$table1." set dislike=dislike + 1 where id=".$_GET['id']);
+                        $req->execute();
+                    } else { 
+                        $req=$linkpdo->prepare("select type from ".$table2." where user='".$username."' and postid=".$_GET['id'])
+                        $req->execute();
+                        $result=$req->fetch();
+                        if ($result == 1) {
+                            $req=$linkpdo->prepare("update ".$table2." set type=0 where user='".$username."' and postid=".$_GET['id']);
+                            $req->execute();
+                            $req=$linkpdo->prepare("update ".$table1." set dislike=dislike + 1 where id=".$_GET['id']);
+                            $req->execute();
+                        }else if ($result ==0){
+                            $req=$linkpdo->prepare("update ".$table1." set dislike=dislike - 1 where id=".$_GET['id']);
+                            $req->execute();
+                        }
+                    }
                 }
                 if (!isset($_GET['like'])) {
                     $postedData = file_get_contents('php://input');
@@ -129,11 +165,14 @@
                     $jsonData= json_decode($postedData);
                     $phrase=$jsonData->phrase;
                     $id=$jsonData->id;
-                    $req=$linkpdo->prepare("SELECT count(phrase) into ".$table1." where id=".$id." and idUser='".$username."'");
+                    $req=$linkpdo->prepare("SELECT count(phrase) from ".$table1." where id=".$id." and idUser='".$username."'");
                     $req->execute();
-                    $usermessage=$req->fetchAll();
-                    $req=$linkpdo->prepare("UPDATE ".$table1." set phrase =:phrase , date_modif=:date_modif where id=:id");
-                    $req->execute(array("phrase"=>$phrase, "id"=>$id, "date_modif" => date("Y/m/d H:i:s", time())));
+                    $usermessage=$req->fetch();
+                    if ($usermessage==1) {
+                        $req=$linkpdo->prepare("UPDATE ".$table1." set phrase =:phrase , date_modif=:date_modif where id=:id");
+                        $req->execute(array("phrase"=>$phrase, "id"=>$id, "date_modif" => date("Y/m/d H:i:s", time())));
+                    }
+                    
                 }
                 /// Envoi de la réponse au Client
                 deliver_response(200, "3", NULL);
