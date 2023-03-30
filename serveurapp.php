@@ -117,8 +117,6 @@
                         $matchingData=$req->fetchAll();
                     }
                 }else if (empty($_GET['id'])&& empty($_GET['like'])){
-                    /// Récupération des données envoyées par le Client
-                }else if (empty($_GET['id'])&& empty($_GET['like'])){
                     $postedData = file_get_contents('php://input');
                     /// Traitement
                     $jsonData= json_decode($postedData);
