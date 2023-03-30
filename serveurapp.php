@@ -104,9 +104,6 @@
                     if ($_GET['like'] == '+') {
                         $like = 1;
                     }
-                    $req=$linkpdo->prepare("Select id from ".$table3." where userName= :userName");
-                    $req->execute(array('userName' => $username ));
-                    $idUser=$req->fetchAll();
                     $req=$linkpdo->prepare("Select Reaction from ".$table2." where idMessage=".$_GET['id']." and idUser=".$username);
                     $req->execute();
                     $matchingData=$req->fetch();
