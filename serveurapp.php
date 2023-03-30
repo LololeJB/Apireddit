@@ -18,8 +18,8 @@
 
     /// Identification du type de méthode HTTP envoyée par le client
     $http_method = $_SERVER['REQUEST_METHOD'];
-    $table1='table avec tout les contenu';
-    $table2='table avec les like et dislike avec id du message et id des users';
+    $table1='post';
+    $table2='reaction';
     $bearer_token=get_bearer_token();
     error_log($bearer_token);
     if($bearer_token==null){
@@ -38,54 +38,79 @@
 
         /// Cas de la méthode GET
         case "GET" :
-            /// Récupération des critères de recherche envoyés par le Client            
-            if($account_type == 'admin'){
-                // Apparition d'un contenu pour les admin avec l'id du contenu
-                if (!empty($_GET['id'])){
-                    $req=$linkpdo->prepare("Select * from ".$table1." where id=".$_GET['id']." order by vote");
-                    $req->execute();
-                    $matchingData=$req->fetchAll(PDO::FETCH_ASSOC);
-                    deliver_response(200, "cela a fonctionné", $matchingData);
-                // Apparition de tout les contenus pour les admin avec toutes les informations
-                } else {
-                    error_log("execute admin");
+            if (!isset($_GET['like'])) {
+                /// Récupération des critères de recherche envoyés par le Client            
+                if($account_type == 'admin'){
+                    // Apparition d'un contenu pour les admin avec l'id du contenu
+                    if (!empty($_GET['id'])){
+                        $req=$linkpdo->prepare("Select * from ".$table1." where id=".$_GET['id']." order by vote");
+                        $req->execute();
+                        $matchingData=$req->fetchAll(PDO::FETCH_ASSOC);
+                    // Apparition de tout les contenus pour les admin avec toutes les informations
+                    } else {
+                        error_log("execute admin");
+                        $req=$linkpdo->prepare("Select * from ".$table1);
+                        $req->execute();
+                        $matchingData=$req->fetchAll(PDO::FETCH_ASSOC);
+                    }
+                } if($account_type == 'publisher'){
+                    //Affiche les articles avec des informations modéré
                     $req=$linkpdo->prepare("Select * from ".$table1);
                     $req->execute();
-                    $matchingData=$req->fetchAll(PDO::FETCH_ASSOC);
-                    deliver_response(200, "cela a fonctionné", $matchingData);
+                    $matchingData=$req->fetchAll();
+                } if($account_type == 'anonyme'){
+                    //affiche des articles avec peu d'informations
+                    $req=$linkpdo->prepare("Select contenu from ".$table1);
+                    $req->execute();
+                    $matchingData=$req->fetchAll();
                 }
-            } if($account_type == 'publisher'){
-                //Affiche les articles avec des informations modéré
-                $req=$linkpdo->prepare("Select * from ".$table1);
-                $req->execute();
-                $matchingData=$req->fetchAll();
-                deliver_response(200, "cela a fonctionné", $matchingData);
-                //affiche des articles avec peu d'informations
-                $req=$linkpdo->prepare("Select * from ".$table1);
-                $req->execute();
-                $matchingData=$req->fetchAll();
-                deliver_response(200, "cela a fonctionné", $matchingData);
+            } else if ($_GET['like']=='+') {
+                if($account_type == 'admin' || $account_type == 'publisher'){
+                    // Apparition d'un contenu pour les admin avec l'id du contenu
+                    if (!empty($_GET['id'])){
+                        $req=$linkpdo->prepare("Select count(*) from ".$table2." where id=".$_GET['id']." and type=1");
+                        $req->execute();
+                        $matchingData=$req->fetch(PDO::FETCH_ASSOC);
+                    // Apparition de tout les contenus pour les admin avec toutes les informations
+                    } else {
+                        deliver_response(501,"votre demande est indisponible", NULL);
+                    }
+                } else {
+                    deliver_response(403, "Ce compte n'a pas accès à cette commande", NULL);
+                }
+            } else if ($_GET['like']=='-') {
+                if($account_type == 'admin' || $account_type == 'publisher'){
+                    // Apparition d'un contenu pour les admin avec l'id du contenu
+                    if (!empty($_GET['id'])){
+                        $req=$linkpdo->prepare("Select count(*) from ".$table2." where id=".$_GET['id']." and type=0");
+                        $req->execute();
+                        $matchingData=$req->fetch(PDO::FETCH_ASSOC);
+                    // Apparition de tout les contenus pour les admin avec toutes les informations
+                    } else {
+                        deliver_response(501,"votre demande est indisponible", NULL);
+                    }
+                } else {
+                    deliver_response(403, "Ce compte n'a pas accès à cette commande", NULL);
+                }
             }
-            /// Envoi de la réponse au Client
             deliver_response(200, "Cela fonctionne correctement", $matchingData);
             break;
 
         /// Cas de la méthode POST
         case "POST" :
             if($account_type == 'publisher'){
-                // vérifie si l'utilisateur a déja réagi au message
                 if (!empty($_GET['id']) || !empty($_GET['like'])){
                     $like ='dislike';
                     if ($_GET['like'] == '+') {
-                        $like = 'like';
+                        $like = 1;
                     }
                     $req=$linkpdo->prepare("Select id from ".$table3." where userName= :userName");
                     $req->execute(array('userName' => $username ));
                     $idUser=$req->fetchAll();
                     $req=$linkpdo->prepare("Select Reaction from ".$table2." where idMessage=".$_GET['id']." and idUser=".$username);
                     $req->execute();
-                    $matchingData=$req->fetchAll();
-                    if($req == NULL){
+                    $matchingData=$req->fetch();
+                    if($matchingData == NULL){
                         $req=$linkpdo->prepare("insert into ".$table2." (reaction, idMessage, idUser) VALUES (:reaction, :idMessage, :idUser)");
                         $req->execute(array("reaction" => $like, "idMessage" => $_GET['id'], "idUser" => $idUser));
                         $matchingData=$req->fetchAll();
@@ -120,20 +145,12 @@
                     $req=$linkpdo->prepare("select count(type) from ".$table2." where user='".$username."' and postid=".$_GET['id'])
                     $req->execute();
                     $result=$req->fetch();
-                    if ($result==0) {
-                        $req=$linkpdo->prepare("update ".$table1." set like=like + 1 where id=".$_GET['id']);
-                        $req->execute();
-                    } else { 
+                    if ($result==1) {
                         $req=$linkpdo->prepare("select type from ".$table2." where user='".$username."' and postid=".$_GET['id'])
                         $req->execute();
                         $result=$req->fetch();
                         if ($result == 0) {
                             $req=$linkpdo->prepare("update ".$table2." set type=1 where user='".$username."' and postid=".$_GET['id']);
-                            $req->execute();
-                            $req=$linkpdo->prepare("update ".$table1." set like=like + 1 where id=".$_GET['id']);
-                            $req->execute();
-                        }else if ($result ==1){
-                            $req=$linkpdo->prepare("update ".$table1." set like=like - 1 where id=".$_GET['id']);
                             $req->execute();
                         }
                     }
@@ -141,20 +158,12 @@
                     $req=$linkpdo->prepare("select count(type) from ".$table2." where user='".$username."' and postid=".$_GET['id'])
                     $req->execute();
                     $result=$req->fetch();
-                    if ($result==0) {
-                        $req=$linkpdo->prepare("update ".$table1." set dislike=dislike + 1 where id=".$_GET['id']);
-                        $req->execute();
-                    } else { 
+                    if ($result==1) {
                         $req=$linkpdo->prepare("select type from ".$table2." where user='".$username."' and postid=".$_GET['id'])
                         $req->execute();
                         $result=$req->fetch();
                         if ($result == 1) {
                             $req=$linkpdo->prepare("update ".$table2." set type=0 where user='".$username."' and postid=".$_GET['id']);
-                            $req->execute();
-                            $req=$linkpdo->prepare("update ".$table1." set dislike=dislike + 1 where id=".$_GET['id']);
-                            $req->execute();
-                        }else if ($result ==0){
-                            $req=$linkpdo->prepare("update ".$table1." set dislike=dislike - 1 where id=".$_GET['id']);
                             $req->execute();
                         }
                     }
@@ -188,10 +197,25 @@
             //Cas du modo
             if($account_type=="admin"){
                 $id=$_GET['id'];
+                $req=$linkpdo->prepare("Delete from ".$table2." where postid=?");
+                $req->execute(array($id));
                 $req=$linkpdo->prepare("Delete from ".$table1." where postid=?");
                 $req->execute(array($id));
                 $response_code=200;
                 $response_string="delete successful";
+            } ($account_type=='anonyme'){
+                $id=$_GET['id'];
+                $req=$linkpdo->prepare("select count(*) from ".$table1." where postid=? and author_name=".$username);
+                $req->execute(array($id));
+                $result=$req->fetch();
+                if ($result == 1) {
+                    $req=$linkpdo->prepare("Delete from ".$table2." where postid=?");
+                    $req->execute(array($id));
+                    $req=$linkpdo->prepare("Delete from ".$table1." where postid=?");
+                    $req->execute(array($id));
+                    $response_code=200;
+                    $response_string="delete successful";
+                }
             }
             //cas du publisher
             /// Envoi de la réponse au Client
