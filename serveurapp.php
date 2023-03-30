@@ -100,7 +100,7 @@
         case "POST" :
             if($account_type == 'publisher'){
                 if (!empty($_GET['id']) || !empty($_GET['like'])){
-                    $like ='dislike';
+                    $like = 0;
                     if ($_GET['like'] == '+') {
                         $like = 1;
                     }
