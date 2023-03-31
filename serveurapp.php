@@ -111,10 +111,6 @@
                         $req=$linkpdo->prepare("insert into ".$table2." (reaction, idMessage, idUser) VALUES (:reaction, :idMessage, :idUser)");
                         $req->execute(array("reaction" => $like, "idMessage" => $_GET['id'], "idUser" => $idUser));
                         $matchingData=$req->fetchAll();
-                    } else if($_GET['like']=="-"){
-                        $req=$linkpdo->prepare("update ".$table1." set dislike=dislike - 1 where id=".$_GET['id']." order by vote");
-                        $req->execute();
-                        $matchingData=$req->fetchAll();
                     }
                 }else if (empty($_GET['id'])&& empty($_GET['like'])){
                     $postedData = file_get_contents('php://input');
