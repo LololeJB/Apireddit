@@ -111,14 +111,21 @@
                         $req=$linkpdo->prepare("insert into ".$table2." (reaction, idMessage, idUser) VALUES (:reaction, :idMessage, :idUser)");
                         $req->execute(array("reaction" => $like, "idMessage" => $_GET['id'], "idUser" => $idUser));
                         $matchingData=$req->fetchAll();
+<<<<<<< HEAD
+                    } else if($_GET['like']=="-"){
+                        $req=$linkpdo->prepare("update ".$table2." set dislike=dislike - 1 where id=".$_GET['id']." order by vote");
+                        $req->execute();
+                        $matchingData=$req->fetchAll();
+=======
+>>>>>>> c8c8ffef30224abc9a7934d3b973ee05e10714d8
                     }
                 }else if (empty($_GET['id'])&& empty($_GET['like'])){
                     $postedData = file_get_contents('php://input');
                     /// Traitement
                     $jsonData= json_decode($postedData);
                     $phrase=$jsonData->phrase;
-                    $req=$linkpdo->prepare("Insert into ".$table1." (phrase, date_ajout) VALUES (:phrase, :date_ajout)");
-                    $req->execute(array("phrase" => $phrase, "date_ajout" =>date("Y/m/d H:i:s", time())));
+                    $req=$linkpdo->prepare("Insert into ".$table1." (phrase, date_ajout, author_name) VALUES (:phrase, :date_ajout, :nom)");
+                    $req->execute(array("phrase" => $phrase, "date_ajout" =>date("Y/m/d H:i:s", time()),":nom"=>$username));
                     deliver_response(201, "Requete réussi", NULL);
                 }else{
                     deliver_response(403, "Ce compte n'a pas accès à cette commande", NULL);
@@ -194,7 +201,7 @@
                 $req->execute(array($id));
                 $response_code=200;
                 $response_string="delete successful";
-            } ($account_type=='anonyme'){
+            } ($account_type=='publisher'){
                 $id=$_GET['id'];
                 $req=$linkpdo->prepare("select count(*) from ".$table1." where postid=? and author_name=".$username);
                 $req->execute(array($id));
